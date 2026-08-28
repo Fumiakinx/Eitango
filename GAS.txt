@@ -1,0 +1,108 @@
+function doGet(e) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // 1. シート一覧取得リクエストの場合 (?action=getSheets)
+  if (e && e.parameter && e.parameter.action === 'getSheets') {
+    const validSheets = [];
+    const sheets = ss.getSheets();
+
+    sheets.forEach(sheet => {
+      const data = sheet.getDataRange().getValues();
+      if (data.length < 2) return; // ヘッダー + 最低1行のデータが必要
+
+      const headers = data[0];
+      const wordIdx = headers.indexOf('A: word');
+      const answerIdx = headers.indexOf('C: answer');
+      const c1Idx = headers.indexOf('D: choice1');
+      const c2Idx = headers.indexOf('E: choice2');
+      const c3Idx = headers.indexOf('F: choice3');
+      const c4Idx = headers.indexOf('G: choice4');
+
+      // 条件2: 必須ヘッダーが存在するかチェック
+      if (wordIdx === -1 || answerIdx === -1 || c1Idx === -1 || c2Idx === -1 || c3Idx === -1 || c4Idx === -1) {
+        return;
+      }
+
+      // 条件3: 有効な出題行が1行以上あるかチェック
+      const rows = data.slice(1);
+      const hasValidRow = rows.some(row => {
+        const word = row[wordIdx];
+        if (!word) return false;
+
+        const answer = row[answerIdx];
+        const choices = [row[c1Idx], row[c2Idx], row[c3Idx], row[c4Idx]].filter(Boolean);
+        const correctCount = choices.filter(choice => choice === answer).length;
+
+        return correctCount === 1;
+      });
+
+      if (hasValidRow) {
+        validSheets.push(sheet.getName());
+      }
+    });
+
+    return ContentService.createTextOutput(JSON.stringify(validSheets))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 2. 単語データ取得リクエスト
+  let sheetName = '小学校';
+  if (e && e.parameter && e.parameter.sheet) {
+    sheetName = e.parameter.sheet;
+  }
+  
+  const sheet = ss.getSheetByName(sheetName);
+  
+  // シートが存在しない場合はエラーを返す
+  if (!sheet) {
+    return ContentService.createTextOutput(JSON.stringify({ error: "Sheet not found: " + sheetName }))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // データの読み込み
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0]; // 1行目の見出し
+  const rows = data.slice(1); // 2行目以降のデータ
+
+  // 配列形式からJSONオブジェクト形式への変換
+  const quizData = rows.map((row, index) => {
+    const word = row[headers.indexOf('A: word')];
+    if (!word) return null; // 空白行は除外対象
+
+    const answer = row[headers.indexOf('C: answer')];
+    const choices = [
+      row[headers.indexOf('D: choice1')],
+      row[headers.indexOf('E: choice2')],
+      row[headers.indexOf('F: choice3')],
+      row[headers.indexOf('G: choice4')]
+    ].filter(Boolean);
+
+    // 選択肢の中にある正解の数をカウント
+    const correctCount = choices.filter(choice => choice === answer).length;
+
+    // 正解がない、または正解が複数ある場合はスプレッドシートの行を赤の太字にしてスキップ
+    if (correctCount === 0 || correctCount > 1) {
+      const rowIndex = index + 2; // ヘッダーが1行目のため、rowsのインデックスに2を足す
+      const range = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn());
+      range.setFontColor("red");
+      range.setFontWeight("bold");
+      return null;
+    }
+
+    return {
+      word: word,
+      type: row[headers.indexOf('B: type')],
+      answer: answer,
+      choices: choices,
+      prefix: row[headers.indexOf('H: prefix')] || "",
+      base: row[headers.indexOf('I: base')] || "",
+      suffix: row[headers.indexOf('J: suffix')] || "",
+      hint: row[headers.indexOf('K: hint')] || ""
+    };
+  }).filter(item => item !== null); // スキップされたデータを除外
+
+  // JSONとして出力（CORS対策を含む）
+  const result = JSON.stringify(quizData);
+  return ContentService.createTextOutput(result)
+                       .setMimeType(ContentService.MimeType.JSON);
+}

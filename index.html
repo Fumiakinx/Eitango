@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英単語パズルクイズ</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .quiz-container {
+            background: linear-gradient(135deg, #1e1e2f 0%, #11111d 100%);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 210, 211, 0.2);
+            width: 400px;
+            text-align: center;
+            border: 2px solid #00d2d3;
+        }
+        /* シート選択画面のスタイル */
+        .sheet-header-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .sheet-selection-title {
+            font-size: 22px;
+            color: #ffffff;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(0, 210, 211, 0.6);
+        }
+        .sheet-reload-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid #444;
+            color: #aaa;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sheet-reload-btn:hover {
+            color: #ffffff;
+            border-color: #00d2d3;
+            background: rgba(0, 210, 211, 0.15);
+        }
+        .sheet-list-container {
+            max-height: 250px;
+            overflow-y: auto;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 8px;
+            background-color: #1a1a24;
+            border: 2px solid #333;
+            cursor: grab;
+            user-select: none;
+            scrollbar-width: thin;
+            scrollbar-color: #444 #1a1a24;
+        }
+        .sheet-list-container.active {
+            cursor: grabbing;
+        }
+        .sheet-item {
+            padding: 14px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            transition: transform 0.1s, box-shadow 0.2s, opacity 0.2s;
+            border: none;
+            cursor: pointer;
+            color: #333333;
+        }
+        .sheet-item:last-child {
+            margin-bottom: 0;
+        }
+        .sheet-item:hover {
+            transform: scale(1.02);
+            filter: brightness(1.03);
+        }
+        /* 付箋紙カラー（イエロー、ピンク、ブルー、グリーン） */
+        .sheet-pastel-yellow {
+            background-color: #f7ea92;
+        }
+        .sheet-pastel-pink {
+            background-color: #f9c5cc;
+        }
+        .sheet-pastel-blue {
+            background-color: #aee0f0;
+        }
+        .sheet-pastel-green {
+            background-color: #bee5b8;
+        }
+        .sheet-item.selected {
+            box-shadow: 0 0 16px rgba(255, 71, 87, 0.8), 0 0 0 3px #ff4757;
+            transform: scale(1.04);
+        }
+        .start-btn {
+            background: linear-gradient(135deg, #6ab04c, #48b068);
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: opacity 0.2s, transform 0.1s;
+            box-shadow: 0 4px 15px rgba(106, 176, 76, 0.4);
+        }
+        .start-btn:disabled {
+            background: #576574;
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .start-btn:hover:not(:disabled) {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+        .start-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+        /* クイズ画面のスタイル */
+        .status-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+        .timer-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #444;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .timer-progress {
+            width: 100%;
+            height: 100%;
+            background-color: #ff4757;
+            transition: width 0.1s linear;
+        }
+        .word-display {
+            font-size: 36px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            color: #00d2d3;
+        }
+        .hint-display {
+            min-height: 60px;
+            font-size: 18px;
+            color: #ff9f43;
+            background-color: #3d3d3d;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 1px dashed #555;
+        }
+        .hint-badge {
+            font-size: 12px;
+            background-color: #ff9f43;
+            color: #2d2d2d;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .choices-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .choice-btn {
+            background-color: #3b3b3b;
+            color: #fff;
+            border: 2px solid #555;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            padding-left: 20px;
+            transition: all 0.2s;
+        }
+        .choice-btn:hover {
+            background-color: #4b4b4b;
+            border-color: #00d2d3;
+        }
+        .choice-btn:disabled {
+            cursor: not-allowed;
+        }
+        .correct {
+            background-color: #10ac84 !important;
+            border-color: #1dd1a1 !important;
+        }
+        .incorrect {
+            background-color: #ee5253 !important;
+            border-color: #ff6b6b !important;
+        }
+        .next-btn {
+            background-color: #2e86de;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+            width: 100%;
+        }
+        .next-btn:hover {
+            background-color: #54a0ff;
+        }
+        .loading-display {
+            font-size: 18px;
+            color: #aaa;
+        }
+        /* 結果画面・ランキング用スタイル */
+        .result-content {
+            text-align: center;
+        }
+        .result-title {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 15px;
+            color: #ff4757;
+        }
+        .result-title.success {
+            color: #2ed573;
+        }
+        .result-score-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .result-score-label {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+        .result-score-num {
+            font-size: 40px;
+            font-weight: 800;
+            color: #ffd32a;
+            text-shadow: 0 0 12px rgba(255, 211, 42, 0.5);
+        }
+        .result-best-record {
+            font-size: 14px;
+            color: #2ed573;
+            margin-top: 6px;
+        }
+        .result-btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .result-btn {
+            flex: 1;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .result-btn-retry {
+            background: linear-gradient(135deg, #6ab04c, #48b068);
+            color: white;
+        }
+        .result-btn-home {
+            background: #2f3542;
+            color: white;
+        }
+        .result-btn:hover {
+            opacity: 0.9;
+        }
+        .sudden-death-mode {
+            color: #ff4757 !important;
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            0% { text-shadow: 0 0 4px #ff4757; }
+            100% { text-shadow: 0 0 12px #ff4757, 0 0 20px #ff6b81; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="quiz-container" id="mainContainer">
+    <!-- 初期状態：シート選択画面 -->
+    <div id="sheetSelectionContent">
+        <div class="sheet-header-wrapper">
+            <div class="sheet-selection-title">出題シートの選択</div>
+            <button class="sheet-reload-btn" onclick="fetchSheetList(true)" title="シート一覧を再取得">🔄 更新</button>
+        </div>
+        <div id="sheetList" class="sheet-list-container">
+            <div style="text-align:center; color:#888; padding:20px;">シート一覧を取得中...</div>
+        </div>
+        <button id="startBtn" class="start-btn" onclick="loadQuizData()" disabled>クイズを開始する</button>
+    </div>
+
+    <!-- ローディング表示（最初は非表示） -->
+    <div class="loading-display" id="loadingDisplay" style="display: none;">データを読み込んでいます...</div>
+    
+    <!-- クイズ画面（最初は非表示） -->
+    <div id="quizContent" style="display: none;">
+        <div class="status-display">
+            <span id="modeDisplay">通常モード</span>
+            <span id="progressDisplay">1 / 10</span>
+        </div>
+        <div class="timer-bar">
+            <div id="timerProgress" class="timer-progress"></div>
+        </div>
+        
+        <div id="wordDisplay" class="word-display">word</div>
+        
+        <div id="hintDisplay" class="hint-display"></div>
+        
+        <div id="choicesGrid" class="choices-grid"></div>
+        
+        <button id="nextBtn" class="next-btn" onclick="nextQuestion()">次の問題へ</button>
+    </div>
+
+    <!-- 結果画面（ゲーム終了時） -->
+    <div id="resultContent" class="result-content" style="display: none;">
+        <div id="resultTitle" class="result-title">ゲームオーバー</div>
+        <div class="result-score-box">
+            <div class="result-score-label">連続正解数</div>
+            <div id="resultScore" class="result-score-num">0</div>
+            <div id="resultBestRecord" class="result-best-record"></div>
+        </div>
+        <div class="result-btn-group">
+            <button class="result-btn result-btn-retry" onclick="retryQuiz()">もう一度挑戦</button>
+            <button class="result-btn result-btn-home" onclick="backToSheetSelect()">シート選択へ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycby75BSZfCl2yFqGV0bL__pMgX93y8CrK0ymsJd6BxtOcURXI7WmNS_CEQxl82LUOK0NZg/exec";
+
+let allMasterData = [];    // GASから取得した全データ
+let currentPool = [];      // 今回のテスト（10問）用のプール
+let incorrectPool = [];    // 間違えた問題をストックする場所
+let currentQuestionIndex = 0;
+let isReviewMode = false;
+
+let timer = null;
+let timeLeft = 100;
+const totalTime = 12000;   // 12秒
+const intervalTime = 100;
+let hintOpened = false;
+
+// 配列シャッフル関数
+function shuffleArray(array) {
+    return array.sort(() => Math.random() - 0.5);
+}
+
+let selectedSheetName = "";
+
+function selectSheet(element, name) {
+    document.querySelectorAll(".sheet-item").forEach(item => item.classList.remove("selected"));
+    element.classList.add("selected");
+    selectedSheetName = name;
+}
+
+// 付箋紙カラーのローテーション
+const PASTEL_CLASSES = [
+    "sheet-pastel-yellow",
+    "sheet-pastel-pink",
+    "sheet-pastel-blue",
+    "sheet-pastel-green"
+];
+
+const STORAGE_SHEET_KEY = "eitango_sheet_list_cache";
+
+// シート一覧を描画する共通処理
+function renderSheetList(sheets) {
+    const sheetListContainer = document.getElementById("sheetList");
+    const startBtn = document.getElementById("startBtn");
+
+    if (!Array.isArray(sheets) || sheets.length === 0) {
+        sheetListContainer.innerHTML = '<div style="text-align:center; color:#ff4757; padding:20px;">有効なシートが見つかりませんでした</div>';
+        startBtn.disabled = true;
+        return;
+    }
+
+    sheetListContainer.innerHTML = "";
+    sheets.forEach((name, index) => {
+        const div = document.createElement("div");
+        const colorClass = PASTEL_CLASSES[index % PASTEL_CLASSES.length];
+        div.className = `sheet-item ${colorClass}`;
+        
+        const highScore = getHighScore(name);
+        if (highScore > 0) {
+            div.innerHTML = `<div>${name}</div><div style="font-size:12px; font-weight:normal; color:#444; margin-top:2px;">👑 連続正解: ${highScore}問</div>`;
+        } else {
+            div.innerText = name;
+        }
+
+        div.onclick = function() { selectSheet(this, name); };
+
+        if (index === 0) {
+            div.classList.add("selected");
+            selectedSheetName = name;
+        }
+        sheetListContainer.appendChild(div);
+    });
+
+    startBtn.disabled = false;
+}
+
+// GASからシート一覧を取得（forceReloadがtrueでない場合はキャッシュを優先利用）
+async function fetchSheetList(forceReload = false) {
+    const sheetListContainer = document.getElementById("sheetList");
+    const startBtn = document.getElementById("startBtn");
+
+    // 1. キャッシュが存在し、強制更新でない場合は即時描画
+    if (!forceReload) {
+        const cached = localStorage.getItem(STORAGE_SHEET_KEY);
+        if (cached) {
+            try {
+                const sheets = JSON.parse(cached);
+                if (Array.isArray(sheets) && sheets.length > 0) {
+                    renderSheetList(sheets);
+                    return;
+                }
+            } catch (e) {
+                console.warn("Cache parse error, re-fetching:", e);
+            }
+        }
+    }
+
+    // 2. GASから取得
+    sheetListContainer.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">シート一覧を取得中...</div>';
+    startBtn.disabled = true;
+
+    try {
+        const response = await fetch(`${GAS_URL}?action=getSheets`);
+        if (!response.ok) throw new Error("Network response was not ok");
+        const sheets = await response.json();
+
+        // キャッシュに保存
+        localStorage.setItem(STORAGE_SHEET_KEY, JSON.stringify(sheets));
+        renderSheetList(sheets);
+    } catch (error) {
+        console.error("Fetch sheet list error:", error);
+        sheetListContainer.innerHTML = '<div style="text-align:center; color:#ff4757; padding:20px;">シート一覧の取得に失敗しました</div>';
+    }
+}
+
+// 選択されたシートのデータをGASから取得する関数
+async function loadQuizData() {
+    if (!selectedSheetName) return;
+
+    // 画面表示の切り替え
+    document.getElementById("sheetSelectionContent").style.display = "none";
+    document.getElementById("loadingDisplay").style.display = "block";
+
+    try {
+        // URLにクエリパラメータとしてシート名を付加
+        const requestUrl = `${GAS_URL}?sheet=${encodeURIComponent(selectedSheetName)}`;
+        const response = await fetch(requestUrl);
+        
+        if (!response.ok) throw new Error("Network response was not ok");
+        allMasterData = await response.json();
+        
+        if (allMasterData.error) {
+            document.getElementById("loadingDisplay").innerText = "エラー: " + allMasterData.error;
+            return;
+        }
+        
+        document.getElementById("loadingDisplay").style.display = "none";
+        document.getElementById("quizContent").style.display = "block";
+        
+        initGame();
+        startQuestion();
+    } catch (error) {
+        console.error("Fetch error:", error);
+        document.getElementById("loadingDisplay").innerText = "データの取得に失敗しました。";
+    }
+}
+
+let consecutiveCorrectCount = 0; // 連続正解カウント
+
+const STORAGE_RANKING_KEY = "eitango_high_scores";
+
+// ハイスコアを取得
+function getHighScore(sheetName) {
+    try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_RANKING_KEY)) || {};
+        return data[sheetName] || 0;
+    } catch {
+        return 0;
+    }
+}
+
+// ハイスコアを更新・保存
+function saveHighScore(sheetName, score) {
+    try {
+        const data = JSON.parse(localStorage.getItem(STORAGE_RANKING_KEY)) || {};
+        if (score > (data[sheetName] || 0)) {
+            data[sheetName] = score;
+            localStorage.setItem(STORAGE_RANKING_KEY, JSON.stringify(data));
+            return true; // 新記録
+        }
+    } catch (e) {
+        console.error("Save score error:", e);
+    }
+    return false;
+}
+
+// ゲーム全体の初期化（全データをシャッフルしてキューを作成）
+function initGame() {
+    currentPool = shuffleArray([...allMasterData]); // シート内全問をシャッフル
+    currentQuestionIndex = 0;
+    consecutiveCorrectCount = 0;
+    isReviewMode = false;
+}
+
+function startQuestion() {
+    // シート内の全問を解ききった場合
+    if (currentQuestionIndex >= currentPool.length) {
+        endGame(true, "全問制覇！おめでとうございます！");
+        return;
+    }
+
+    clearInterval(timer);
+
+    const q = currentPool[currentQuestionIndex];
+    const isSuddenDeath = currentQuestionIndex >= 10;
+    
+    // モード・進捗表示の切り替え
+    const modeEl = document.getElementById("modeDisplay");
+    if (isSuddenDeath) {
+        modeEl.innerText = "サドンデス🔥";
+        modeEl.className = "sudden-death-mode";
+    } else {
+        modeEl.innerText = q.type === "解体" ? "解体モード🧩" : "通常モード";
+        modeEl.className = "";
+    }
+    
+    document.getElementById("progressDisplay").innerText = `連続正解: ${consecutiveCorrectCount} 問 (第 ${currentQuestionIndex + 1} 問)`;
+    document.getElementById("wordDisplay").innerText = q.word;
+    
+    // 枠線のデザインをタイプに合わせて制御
+    const hintDisplay = document.getElementById("hintDisplay");
+    hintDisplay.innerHTML = "";
+    if (q.type === "解体") {
+        hintDisplay.style.border = "1px dashed #555";
+        hintDisplay.style.backgroundColor = "#3d3d3d";
+    } else {
+        hintDisplay.style.border = "none";
+        hintDisplay.style.backgroundColor = "transparent";
+    }
+    
+    document.getElementById("nextBtn").style.display = "none";
+    hintOpened = false;
+    timeLeft = 100;
+    
+    const grid = document.getElementById("choicesGrid");
+    grid.innerHTML = "";
+    
+    const shuffledChoices = shuffleArray([...q.choices]);
+    shuffledChoices.forEach(choice => {
+        const btn = document.createElement("button");
+        btn.className = "choice-btn";
+        btn.innerText = choice;
+        btn.onclick = () => checkAnswer(btn, choice);
+        grid.appendChild(btn);
+    });
+
+    timer = setInterval(updateTimer, intervalTime);
+}
+
+function updateTimer() {
+    timeLeft -= (intervalTime / totalTime) * 100;
+    const progress = document.getElementById("timerProgress");
+    progress.style.width = timeLeft + "%";
+
+    const q = currentPool[currentQuestionIndex];
+    
+    // 半分経過かつ「解体」タイプの場合のみ中間ヒント表示
+    if (timeLeft <= 50 && !hintOpened && q.type === "解体") {
+        hintOpened = true;
+        showHint();
+    }
+
+    if (timeLeft <= 0) {
+        clearInterval(timer);
+        progress.style.width = "0%";
+        revealCorrectAnswer();
+        setTimeout(() => {
+            endGame(false, "タイムアップ！");
+        }, 1200);
+    }
+}
+
+function showHint() {
+    const q = currentPool[currentQuestionIndex];
+    if (q.type !== "解体") return;
+
+    let html = '<span class="hint-badge">漢字解体ヒント</span><div>';
+    if(q.prefix) html += ` <strong>${q.prefix}</strong> ＋`;
+    html += ` <strong>${q.base}</strong>`;
+    if(q.suffix) html += ` ＋ <strong>${q.suffix}</strong>`;
+    html += `</div><div style="margin-top:5px; font-size:14px; color:#ccc;">➔ ${q.hint}</div>`;
+    
+    document.getElementById("hintDisplay").innerHTML = html;
+}
+
+function checkAnswer(selectedBtn, chosenAnswer) {
+    clearInterval(timer);
+    const q = currentPool[currentQuestionIndex];
+    const buttons = document.querySelectorAll(".choice-btn");
+    
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        if (btn.innerText === q.answer) {
+            btn.classList.add("correct");
+        }
+    });
+
+    if (chosenAnswer === q.answer) {
+        // 正解
+        consecutiveCorrectCount++;
+        if (q.type === "解体") {
+            showHint();
+        }
+        document.getElementById("nextBtn").style.display = "block";
+    } else {
+        // 不正解：即終了
+        selectedBtn.classList.add("incorrect");
+        if (q.type === "解体") {
+            showHint();
+        }
+        setTimeout(() => {
+            endGame(false, "ゲームオーバー");
+        }, 1500);
+    }
+}
+
+function revealCorrectAnswer() {
+    const q = currentPool[currentQuestionIndex];
+    const buttons = document.querySelectorAll(".choice-btn");
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        if (btn.innerText === q.answer) {
+            btn.classList.add("correct");
+        }
+    });
+    if (q.type === "解体") {
+        showHint();
+    }
+}
+
+function nextQuestion() {
+    currentQuestionIndex++;
+    startQuestion();
+}
+
+// ゲーム終了処理・ランキング更新
+function endGame(isClear, titleText) {
+    clearInterval(timer);
+    document.getElementById("quizContent").style.display = "none";
+    
+    const resultContent = document.getElementById("resultContent");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultScore = document.getElementById("resultScore");
+    const resultBestRecord = document.getElementById("resultBestRecord");
+
+    resultTitle.innerText = titleText;
+    resultTitle.className = isClear ? "result-title success" : "result-title";
+    resultScore.innerText = `${consecutiveCorrectCount} 問`;
+
+    const isNewRecord = saveHighScore(selectedSheetName, consecutiveCorrectCount);
+    const bestScore = getHighScore(selectedSheetName);
+
+    if (isNewRecord && consecutiveCorrectCount > 0) {
+        resultBestRecord.innerText = `🎉 自己ベスト更新！ (最高記録: ${bestScore} 問)`;
+    } else {
+        resultBestRecord.innerText = `シート最高記録: ${bestScore} 問`;
+    }
+
+    resultContent.style.display = "block";
+}
+
+function retryQuiz() {
+    document.getElementById("resultContent").style.display = "none";
+    document.getElementById("quizContent").style.display = "block";
+    initGame();
+    startQuestion();
+}
+
+function backToSheetSelect() {
+    document.getElementById("resultContent").style.display = "none";
+    document.getElementById("sheetSelectionContent").style.display = "block";
+    renderSheetList(JSON.parse(localStorage.getItem(STORAGE_SHEET_KEY)) || []);
+}
+
+// ドラッグスクロール実装 & 初期化
+window.addEventListener('DOMContentLoaded', () => {
+    fetchSheetList();
+
+    const list = document.getElementById('sheetList');
+    let isDown = false;
+    let startY;
+    let scrollTop;
+    let hasDragged = false;
+
+    list.addEventListener('mousedown', (e) => {
+        isDown = true;
+        list.classList.add('active');
+        startY = e.pageY - list.offsetTop;
+        scrollTop = list.scrollTop;
+        hasDragged = false;
+    });
+
+    list.addEventListener('mouseleave', () => {
+        isDown = false;
+        list.classList.remove('active');
+    });
+
+    list.addEventListener('mouseup', () => {
+        isDown = false;
+        list.classList.remove('active');
+    });
+
+    list.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const y = e.pageY - list.offsetTop;
+        const walk = (y - startY) * 1.5;
+        list.scrollTop = scrollTop - walk;
+        if (Math.abs(y - startY) > 5) {
+            hasDragged = true;
+        }
+    });
+
+    list.addEventListener('click', (e) => {
+        if (hasDragged) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }, true);
+});
+</script>
+
+</body>
+</html>
