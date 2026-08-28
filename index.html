@@ -3,27 +3,239 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英単語パズルクイズ</title>
+    <title>🔤 えいたん (Eitango) | WEB PLAYER</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-gradient-start: #0a0a0c;
+            --bg-gradient-end: #14141f;
+            --handle-bg: rgba(18, 18, 20, 0.85);
+            --handle-color: rgba(255, 255, 255, 0.6);
+            --handle-border: rgba(255, 255, 255, 0.15);
+            --handle-hover-color: #6ab04c;
+            --accent-glow: rgba(106, 176, 76, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background-color: #1e1e1e;
+            font-family: 'Inter', 'Outfit', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
             color: #ffffff;
+            min-height: 100vh;
             display: flex;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
+            justify-content: center;
+            overflow-x: hidden;
             margin: 0;
         }
+
+        /* 🏠 ポータルTOPへ戻る固定ボタン */
+        .portal-top-link {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(18, 18, 20, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .portal-top-link:hover {
+            border-color: var(--handle-hover-color);
+            color: var(--handle-hover-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+        }
+
+        /* 全体メインコンテナ */
+        #main-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            padding: 40px 20px;
+            width: 100%;
+            max-width: 960px;
+        }
+
+        /* 左側：クイズコンテナ */
         .quiz-container {
             background: linear-gradient(135deg, #1e1e2f 0%, #11111d 100%);
             padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 210, 211, 0.2);
-            width: 400px;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 210, 211, 0.2);
+            width: 420px;
             text-align: center;
             border: 2px solid #00d2d3;
+            flex-shrink: 0;
         }
+
+        /* 右側：サイドバーランキング（すうどく・フリーセル準拠） */
+        #sidebar-ranking {
+            width: 340px;
+            background: rgba(18, 18, 20, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(15px);
+            display: flex;
+            flex-direction: column;
+            animation: fadeInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            flex-shrink: 0;
+        }
+
+        @keyframes fadeInRight {
+            from { opacity: 0; transform: translateX(30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 860px) {
+            #main-container {
+                flex-direction: column;
+                padding-top: 70px;
+            }
+            #sidebar-ranking {
+                width: 420px;
+                max-width: 100%;
+            }
+            .quiz-container {
+                width: 100%;
+                max-width: 420px;
+            }
+        }
+
+        /* 👤 プレイヤー名設定カード */
+        #sidebar-profile-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        }
+        .profile-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .profile-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--handle-hover-color);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            text-shadow: 0 0 5px var(--accent-glow);
+        }
+        #saveIndicator {
+            font-size: 10px;
+            color: #4CAF50;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            font-weight: bold;
+        }
+        #saveIndicator.active {
+            opacity: 1;
+        }
+        #globalPlayerName {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 13px;
+            font-weight: bold;
+            outline: none;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        #globalPlayerName:focus {
+            border-color: var(--handle-hover-color);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+        .profile-desc {
+            font-size: 10px;
+            color: #8a8a93;
+            line-height: 1.4;
+        }
+
+        /* 🏆 ランキングタイトルエリア */
+        .ranking-title-area {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .ranking-main-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: #ffd32a;
+            text-shadow: 0 0 10px rgba(255, 211, 42, 0.4);
+            letter-spacing: 0.5px;
+        }
+        .ranking-sheet-selector {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            max-width: 140px;
+        }
+        .ranking-sheet-selector option {
+            background-color: #1a1a24;
+            color: #ffffff;
+        }
+
+        .ranking-table-wrap {
+            flex-grow: 1;
+            overflow-y: auto;
+            max-height: 280px;
+        }
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+        .ranking-table th {
+            color: #8a8a93;
+            font-weight: 600;
+            padding: 8px 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .ranking-table td {
+            padding: 8px 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-weight: 500;
+        }
+        .rank-1 { color: #ffd32a; font-weight: bold; }
+        .rank-2 { color: #dcdde1; font-weight: bold; }
+        .rank-3 { color: #e1b12c; font-weight: bold; }
+
         /* シート選択画面のスタイル */
         .sheet-header-wrapper {
             display: flex;
@@ -306,64 +518,113 @@
 </head>
 <body>
 
-<div class="quiz-container" id="mainContainer">
-    <!-- 初期状態：シート選択画面 -->
-    <div id="sheetSelectionContent">
-        <div class="sheet-header-wrapper">
-            <div class="sheet-selection-title">出題シートの選択</div>
-            <button class="sheet-reload-btn" onclick="fetchSheetList(true)" title="シート一覧を再取得">🔄 更新</button>
+<!-- 🏠 ポータルTOPへ戻るリンク -->
+<a href="https://fumiakinx.github.io/" class="portal-top-link" id="portalTopLink">
+    <span>🏠</span> ポータルTOPへ戻る
+</a>
+
+<div id="main-container">
+    <!-- 左側：クイズコンテナ -->
+    <div class="quiz-container" id="mainContainer">
+        <!-- 初期状態：シート選択画面 -->
+        <div id="sheetSelectionContent">
+            <div class="sheet-header-wrapper">
+                <div class="sheet-selection-title">出題シートの選択</div>
+                <button class="sheet-reload-btn" onclick="fetchSheetList(true)" title="シート一覧を再取得">🔄 更新</button>
+            </div>
+            <div id="sheetList" class="sheet-list-container">
+                <div style="text-align:center; color:#888; padding:20px;">シート一覧を取得中...</div>
+            </div>
+            <button id="startBtn" class="start-btn" onclick="loadQuizData()" disabled>クイズを開始する</button>
         </div>
-        <div id="sheetList" class="sheet-list-container">
-            <div style="text-align:center; color:#888; padding:20px;">シート一覧を取得中...</div>
+
+        <!-- ローディング表示（最初は非表示） -->
+        <div class="loading-display" id="loadingDisplay" style="display: none;">データを読み込んでいます...</div>
+        
+        <!-- クイズ画面（最初は非表示） -->
+        <div id="quizContent" style="display: none;">
+            <div class="status-display">
+                <span id="modeDisplay">通常モード</span>
+                <span id="progressDisplay">1 / 10</span>
+            </div>
+            <div class="timer-bar">
+                <div id="timerProgress" class="timer-progress"></div>
+            </div>
+            
+            <div id="wordDisplay" class="word-display">word</div>
+            
+            <div id="hintDisplay" class="hint-display"></div>
+            
+            <div id="choicesGrid" class="choices-grid"></div>
+            
+            <button id="nextBtn" class="next-btn" onclick="nextQuestion()">次の問題へ</button>
         </div>
-        <button id="startBtn" class="start-btn" onclick="loadQuizData()" disabled>クイズを開始する</button>
+
+        <!-- 結果画面（ゲーム終了時） -->
+        <div id="resultContent" class="result-content" style="display: none;">
+            <div id="resultTitle" class="result-title">ゲームオーバー</div>
+            <div class="result-score-box">
+                <div class="result-score-label">連続正解数</div>
+                <div id="resultScore" class="result-score-num">0</div>
+                <div id="resultBestRecord" class="result-best-record"></div>
+            </div>
+            <div class="result-btn-group">
+                <button class="result-btn result-btn-retry" onclick="retryQuiz()">もう一度挑戦</button>
+                <button class="result-btn result-btn-home" onclick="backToSheetSelect()">シート選択へ</button>
+            </div>
+        </div>
     </div>
 
-    <!-- ローディング表示（最初は非表示） -->
-    <div class="loading-display" id="loadingDisplay" style="display: none;">データを読み込んでいます...</div>
-    
-    <!-- クイズ画面（最初は非表示） -->
-    <div id="quizContent" style="display: none;">
-        <div class="status-display">
-            <span id="modeDisplay">通常モード</span>
-            <span id="progressDisplay">1 / 10</span>
+    <!-- 右側：ランキングサイドバー -->
+    <div id="sidebar-ranking">
+        <!-- 👤 プレイヤー名設定カード -->
+        <div id="sidebar-profile-card">
+            <div class="profile-header">
+                <span class="profile-title">👤 プレイヤー設定</span>
+                <span id="saveIndicator">✓ 保存完了</span>
+            </div>
+            <input type="text" id="globalPlayerName" placeholder="名前を入力してください" maxlength="10">
+            <span class="profile-desc">設定した名前は、すべてのゲームとオンラインランキングで自動共有されます。</span>
         </div>
-        <div class="timer-bar">
-            <div id="timerProgress" class="timer-progress"></div>
-        </div>
-        
-        <div id="wordDisplay" class="word-display">word</div>
-        
-        <div id="hintDisplay" class="hint-display"></div>
-        
-        <div id="choicesGrid" class="choices-grid"></div>
-        
-        <button id="nextBtn" class="next-btn" onclick="nextQuestion()">次の問題へ</button>
-    </div>
 
-    <!-- 結果画面（ゲーム終了時） -->
-    <div id="resultContent" class="result-content" style="display: none;">
-        <div id="resultTitle" class="result-title">ゲームオーバー</div>
-        <div class="result-score-box">
-            <div class="result-score-label">連続正解数</div>
-            <div id="resultScore" class="result-score-num">0</div>
-            <div id="resultBestRecord" class="result-best-record"></div>
+        <!-- 🏆 ランキング表 -->
+        <div class="ranking-title-area">
+            <span class="ranking-main-title">🏆 順位表 (TOP10)</span>
+            <select id="sidebar-sheet-select" class="ranking-sheet-selector" onchange="loadLeaderboard(this.value)">
+                <option value="">読込中...</option>
+            </select>
         </div>
-        <div class="result-btn-group">
-            <button class="result-btn result-btn-retry" onclick="retryQuiz()">もう一度挑戦</button>
-            <button class="result-btn result-btn-home" onclick="backToSheetSelect()">シート選択へ</button>
+
+        <div class="ranking-table-wrap">
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">順位</th>
+                        <th style="width: 50%;">プレイヤー</th>
+                        <th style="width: 30%;">正解数</th>
+                    </tr>
+                </thead>
+                <tbody id="sidebar-table-body">
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: #888; padding: 30px 0;">読み込み中...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycby75BSZfCl2yFqGV0bL__pMgX93y8CrK0ymsJd6BxtOcURXI7WmNS_CEQxl82LUOK0NZg/exec";
+// 単語問題・シート一覧取得用（EitangoスプシのGAS）
+const QUIZ_API_URL = "https://script.google.com/macros/s/AKfycby75BSZfCl2yFqGV0bL__pMgX93y8CrK0ymsJd6BxtOcURXI7WmNS_CEQxl82LUOK0NZg/exec";
+
+// 🏆 オンラインランキング共通管理用（FumiScoreスプシのGAS）
+const RANKING_API_URL = "https://script.google.com/macros/s/AKfycbzIgOMcU1d9kMOfeDjmZmDFcoW8k1LIK0yZbNSCmokaFdb7JyMwa6mHKxxfkVlgaOEt/exec";
 
 let allMasterData = [];    // GASから取得した全データ
-let currentPool = [];      // 今回のテスト（10問）用のプール
-let incorrectPool = [];    // 間違えた問題をストックする場所
+let currentPool = [];      // 今回のテスト用のプール
 let currentQuestionIndex = 0;
-let isReviewMode = false;
+let consecutiveCorrectCount = 0; // 連続正解カウント
 
 let timer = null;
 let timeLeft = 100;
@@ -382,6 +643,13 @@ function selectSheet(element, name) {
     document.querySelectorAll(".sheet-item").forEach(item => item.classList.remove("selected"));
     element.classList.add("selected");
     selectedSheetName = name;
+
+    // ランキングのセレクトボックスも同期して切り替え
+    const rankingSelect = document.getElementById("sidebar-sheet-select");
+    if (rankingSelect && rankingSelect.value !== name) {
+        rankingSelect.value = name;
+        loadLeaderboard(name);
+    }
 }
 
 // 付箋紙カラーのローテーション
@@ -398,6 +666,7 @@ const STORAGE_SHEET_KEY = "eitango_sheet_list_cache";
 function renderSheetList(sheets) {
     const sheetListContainer = document.getElementById("sheetList");
     const startBtn = document.getElementById("startBtn");
+    const rankingSelect = document.getElementById("sidebar-sheet-select");
 
     if (!Array.isArray(sheets) || sheets.length === 0) {
         sheetListContainer.innerHTML = '<div style="text-align:center; color:#ff4757; padding:20px;">有効なシートが見つかりませんでした</div>';
@@ -406,7 +675,10 @@ function renderSheetList(sheets) {
     }
 
     sheetListContainer.innerHTML = "";
+    rankingSelect.innerHTML = "";
+
     sheets.forEach((name, index) => {
+        // シート選択アイテム
         const div = document.createElement("div");
         const colorClass = PASTEL_CLASSES[index % PASTEL_CLASSES.length];
         div.className = `sheet-item ${colorClass}`;
@@ -425,17 +697,25 @@ function renderSheetList(sheets) {
             selectedSheetName = name;
         }
         sheetListContainer.appendChild(div);
+
+        // ランキング切り替え用option
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.innerText = name;
+        rankingSelect.appendChild(opt);
     });
 
     startBtn.disabled = false;
+    if (selectedSheetName) {
+        loadLeaderboard(selectedSheetName);
+    }
 }
 
-// GASからシート一覧を取得（forceReloadがtrueでない場合はキャッシュを優先利用）
+// GASからシート一覧を取得
 async function fetchSheetList(forceReload = false) {
     const sheetListContainer = document.getElementById("sheetList");
     const startBtn = document.getElementById("startBtn");
 
-    // 1. キャッシュが存在し、強制更新でない場合は即時描画
     if (!forceReload) {
         const cached = localStorage.getItem(STORAGE_SHEET_KEY);
         if (cached) {
@@ -451,16 +731,14 @@ async function fetchSheetList(forceReload = false) {
         }
     }
 
-    // 2. GASから取得
     sheetListContainer.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">シート一覧を取得中...</div>';
     startBtn.disabled = true;
 
     try {
-        const response = await fetch(`${GAS_URL}?action=getSheets`);
+        const response = await fetch(`${QUIZ_API_URL}?action=getSheets`);
         if (!response.ok) throw new Error("Network response was not ok");
         const sheets = await response.json();
 
-        // キャッシュに保存
         localStorage.setItem(STORAGE_SHEET_KEY, JSON.stringify(sheets));
         renderSheetList(sheets);
     } catch (error) {
@@ -469,17 +747,73 @@ async function fetchSheetList(forceReload = false) {
     }
 }
 
-// 選択されたシートのデータをGASから取得する関数
+// 🏆 オンラインランキング取得（FumiScoreスプシから取得）
+async function loadLeaderboard(sheetName) {
+    if (!sheetName) return;
+    const tbody = document.getElementById("sidebar-table-body");
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #888; padding: 25px 0;">読み込み中...</td></tr>';
+
+    try {
+        const response = await fetch(`${RANKING_API_URL}?action=get_eitango_ranking&sheet=${encodeURIComponent(sheetName)}`);
+        if (!response.ok) throw new Error("Network response was not ok");
+        const res = await response.json();
+
+        if (!res.success || !res.records || res.records.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #666; padding: 25px 0;">記録がありません</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = "";
+        res.records.forEach((item, index) => {
+            const tr = document.createElement("tr");
+            const rank = index + 1;
+            let rankClass = "";
+            if (rank === 1) rankClass = "rank-1";
+            else if (rank === 2) rankClass = "rank-2";
+            else if (rank === 3) rankClass = "rank-3";
+
+            tr.innerHTML = `
+                <td class="${rankClass}">${rank}位</td>
+                <td style="color: #eee; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px;">${escapeHtml(item.name)}</td>
+                <td style="font-weight: bold; color: #ffd32a;">${item.streak}問</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error("Leaderboard error:", error);
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #ff4757; padding: 25px 0;">取得エラー</td></tr>';
+    }
+}
+
+// スコア送信（FumiScoreスプシへ登録）
+async function submitScore(sheetName, score) {
+    const nameInput = document.getElementById("globalPlayerName");
+    const name = nameInput ? nameInput.value.trim() : "";
+    if (!name || score <= 0) return;
+
+    try {
+        await fetch(`${RANKING_API_URL}?action=add_eitango_score&sheet=${encodeURIComponent(sheetName)}&name=${encodeURIComponent(name)}&streak=${score}`);
+        loadLeaderboard(sheetName);
+    } catch (e) {
+        console.error("Submit score error:", e);
+    }
+}
+
+function escapeHtml(str) {
+    return String(str || "").replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[m]);
+}
+
+// 選択されたシートのデータをGASから取得する関数（Eitangoスプシから取得）
 async function loadQuizData() {
     if (!selectedSheetName) return;
 
-    // 画面表示の切り替え
     document.getElementById("sheetSelectionContent").style.display = "none";
     document.getElementById("loadingDisplay").style.display = "block";
 
     try {
-        // URLにクエリパラメータとしてシート名を付加
-        const requestUrl = `${GAS_URL}?sheet=${encodeURIComponent(selectedSheetName)}`;
+        const requestUrl = `${QUIZ_API_URL}?sheet=${encodeURIComponent(selectedSheetName)}`;
         const response = await fetch(requestUrl);
         
         if (!response.ok) throw new Error("Network response was not ok");
@@ -501,11 +835,8 @@ async function loadQuizData() {
     }
 }
 
-let consecutiveCorrectCount = 0; // 連続正解カウント
-
 const STORAGE_RANKING_KEY = "eitango_high_scores";
 
-// ハイスコアを取得
 function getHighScore(sheetName) {
     try {
         const data = JSON.parse(localStorage.getItem(STORAGE_RANKING_KEY)) || {};
@@ -515,14 +846,13 @@ function getHighScore(sheetName) {
     }
 }
 
-// ハイスコアを更新・保存
 function saveHighScore(sheetName, score) {
     try {
         const data = JSON.parse(localStorage.getItem(STORAGE_RANKING_KEY)) || {};
         if (score > (data[sheetName] || 0)) {
             data[sheetName] = score;
             localStorage.setItem(STORAGE_RANKING_KEY, JSON.stringify(data));
-            return true; // 新記録
+            return true;
         }
     } catch (e) {
         console.error("Save score error:", e);
@@ -530,16 +860,13 @@ function saveHighScore(sheetName, score) {
     return false;
 }
 
-// ゲーム全体の初期化（全データをシャッフルしてキューを作成）
 function initGame() {
-    currentPool = shuffleArray([...allMasterData]); // シート内全問をシャッフル
+    currentPool = shuffleArray([...allMasterData]);
     currentQuestionIndex = 0;
     consecutiveCorrectCount = 0;
-    isReviewMode = false;
 }
 
 function startQuestion() {
-    // シート内の全問を解ききった場合
     if (currentQuestionIndex >= currentPool.length) {
         endGame(true, "全問制覇！おめでとうございます！");
         return;
@@ -550,7 +877,6 @@ function startQuestion() {
     const q = currentPool[currentQuestionIndex];
     const isSuddenDeath = currentQuestionIndex >= 10;
     
-    // モード・進捗表示の切り替え
     const modeEl = document.getElementById("modeDisplay");
     if (isSuddenDeath) {
         modeEl.innerText = "サドンデス🔥";
@@ -563,7 +889,6 @@ function startQuestion() {
     document.getElementById("progressDisplay").innerText = `連続正解: ${consecutiveCorrectCount} 問 (第 ${currentQuestionIndex + 1} 問)`;
     document.getElementById("wordDisplay").innerText = q.word;
     
-    // 枠線のデザインをタイプに合わせて制御
     const hintDisplay = document.getElementById("hintDisplay");
     hintDisplay.innerHTML = "";
     if (q.type === "解体") {
@@ -600,7 +925,6 @@ function updateTimer() {
 
     const q = currentPool[currentQuestionIndex];
     
-    // 半分経過かつ「解体」タイプの場合のみ中間ヒント表示
     if (timeLeft <= 50 && !hintOpened && q.type === "解体") {
         hintOpened = true;
         showHint();
@@ -642,14 +966,12 @@ function checkAnswer(selectedBtn, chosenAnswer) {
     });
 
     if (chosenAnswer === q.answer) {
-        // 正解
         consecutiveCorrectCount++;
         if (q.type === "解体") {
             showHint();
         }
         document.getElementById("nextBtn").style.display = "block";
     } else {
-        // 不正解：即終了
         selectedBtn.classList.add("incorrect");
         if (q.type === "解体") {
             showHint();
@@ -679,7 +1001,6 @@ function nextQuestion() {
     startQuestion();
 }
 
-// ゲーム終了処理・ランキング更新
 function endGame(isClear, titleText) {
     clearInterval(timer);
     document.getElementById("quizContent").style.display = "none";
@@ -702,6 +1023,11 @@ function endGame(isClear, titleText) {
         resultBestRecord.innerText = `シート最高記録: ${bestScore} 問`;
     }
 
+    // オンラインランキングにスコア送信
+    if (consecutiveCorrectCount > 0) {
+        submitScore(selectedSheetName, consecutiveCorrectCount);
+    }
+
     resultContent.style.display = "block";
 }
 
@@ -718,10 +1044,45 @@ function backToSheetSelect() {
     renderSheetList(JSON.parse(localStorage.getItem(STORAGE_SHEET_KEY)) || []);
 }
 
-// ドラッグスクロール実装 & 初期化
+// 初期化 & イベントバインド
 window.addEventListener('DOMContentLoaded', () => {
+    // ローカル環境でのポータル戻るリンクの切り替え
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) {
+        const portalLink = document.getElementById('portalTopLink');
+        if (portalLink) portalLink.href = "../FumiPortal/index.html";
+    }
+
+    // 👤 プレイヤー名のローカルストレージ連携
+    const nameInput = document.getElementById('globalPlayerName');
+    const saveIndicator = document.getElementById('saveIndicator');
+    const savedName = localStorage.getItem('jigsaw_player_name');
+    if (savedName && nameInput) {
+        nameInput.value = savedName;
+    }
+
+    let debounceTimer = null;
+    if (nameInput) {
+        nameInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const trimmedVal = e.target.value.trim();
+                if (trimmedVal.length > 0) {
+                    localStorage.setItem('jigsaw_player_name', trimmedVal);
+                    if (saveIndicator) {
+                        saveIndicator.classList.add('active');
+                        setTimeout(() => {
+                            saveIndicator.classList.remove('active');
+                        }, 2000);
+                    }
+                }
+            }, 400);
+        });
+    }
+
     fetchSheetList();
 
+    // ドラッグスクロール実装
     const list = document.getElementById('sheetList');
     let isDown = false;
     let startY;
