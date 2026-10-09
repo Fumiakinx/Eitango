@@ -1,0 +1,254 @@
+// ==========================================
+// 設定: Gemini APIキーとモデル設定
+// ==========================================
+const GEMINI_API_KEY = "AIzaSyAvwC6PyH0V9f3mTFV1t1yTwU2SZbn9xcU";
+const GEMINI_MODEL = "gemini-1.5-flash";
+
+/**
+ * スプレッドシート開時にカスタムメニューを追加
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('単語データ生成')
+    .addItem('選択中の行を生成・更新', 'processSelectedRows')
+    .addItem('アクティブシート全体を生成・更新', 'processCurrentSheet')
+    .addToUi();
+}
+
+/**
+ * 選択中の行のみを対象にデータを生成・更新
+ */
+function processSelectedRows() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const selection = sheet.getSelection().getActiveRange();
+  
+  if (!selection) {
+    SpreadsheetApp.getUi().alert("行を選択してください。");
+    return;
+  }
+
+  const startRow = selection.getRow();
+  const numRows = selection.getNumRows();
+
+  // 1行目（ヘッダー行）のみ選択されている場合は除外
+  if (startRow === 1 && numRows === 1) {
+    SpreadsheetApp.getUi().alert("データ行を選択してください。");
+    return;
+  }
+
+  // 選択範囲の開始行と終了行をデータ行範囲に調整
+  const actualStartRow = Math.max(2, startRow);
+  const actualNumRows = numRows - (actualStartRow - startRow);
+
+  if (actualNumRows <= 0) return;
+
+  // A列〜K列（1〜11列目）を取得
+  const range = sheet.getRange(actualStartRow, 1, actualNumRows, 11);
+  const values = range.getValues();
+
+  let updateCount = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const currentRow = actualStartRow + i;
+    const row = values[i];
+    const word = String(row[0] || "").trim();
+    const type = String(row[1] || "").trim();
+
+    if (!word) continue;
+
+    if (!type) {
+      const generated = generateFullData(word);
+      if (generated) {
+        sheet.getRange(currentRow, 2, 1, 10).setValues([[
+          generated.type,
+          generated.answer,
+          generated.choice1,
+          generated.choice2,
+          generated.choice3,
+          generated.choice4,
+          generated.prefix,
+          generated.base,
+          generated.suffix,
+          generated.hint
+        ]]);
+        updateCount++;
+      }
+    } else if (type === "解体") {
+      const answer = String(row[2] || "").trim();
+      const generatedHK = generateEtymologyOnly(word, answer);
+      if (generatedHK) {
+        sheet.getRange(currentRow, 8, 1, 4).setValues([[
+          generatedHK.prefix,
+          generatedHK.base,
+          generatedHK.suffix,
+          generatedHK.hint
+        ]]);
+        updateCount++;
+      }
+    }
+  }
+
+  SpreadsheetApp.getUi().alert(`選択行の処理が完了しました（更新件数: ${updateCount}件）`);
+}
+
+/**
+ * 現在開いているシート全体を走査してデータを生成・更新
+ */
+function processCurrentSheet() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    SpreadsheetApp.getUi().alert("処理対象のデータがありません。");
+    return;
+  }
+
+  // A列〜K列（1〜11列目）を取得（2行目以降）
+  const range = sheet.getRange(2, 1, lastRow - 1, 11);
+  const values = range.getValues();
+
+  let updateCount = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const rowIndex = i + 2; // 実スプレッドシート上の行番号
+    const row = values[i];
+    const word = String(row[0] || "").trim();
+    const type = String(row[1] || "").trim();
+
+    if (!word) continue; // A列が空ならスキップ
+
+    // パターン1: B列が空（新規生成 -> B〜K列をすべて入力）
+    if (!type) {
+      const generated = generateFullData(word);
+      if (generated) {
+        // B列〜K列（2列目から10列分）に書き込み
+        sheet.getRange(rowIndex, 2, 1, 10).setValues([[
+          generated.type,
+          generated.answer,
+          generated.choice1,
+          generated.choice2,
+          generated.choice3,
+          generated.choice4,
+          generated.prefix,
+          generated.base,
+          generated.suffix,
+          generated.hint
+        ]]);
+        updateCount++;
+      }
+    }
+    // パターン2: B〜G列があり、B列が「解体」（H〜K列のみ再生成して上書き）
+    else if (type === "解体") {
+      const answer = String(row[2] || "").trim();
+      const generatedHK = generateEtymologyOnly(word, answer);
+      if (generatedHK) {
+        // H列〜K列（8列目から4列分）に書き込み
+        sheet.getRange(rowIndex, 8, 1, 4).setValues([[
+          generatedHK.prefix,
+          generatedHK.base,
+          generatedHK.suffix,
+          generatedHK.hint
+        ]]);
+        updateCount++;
+      }
+    }
+  }
+
+  SpreadsheetApp.getUi().alert(`処理が完了しました（更新件数: ${updateCount}件）`);
+}
+
+/**
+ * B〜K列の全データをGemini APIで生成
+ */
+function generateFullData(word) {
+  const prompt = `
+以下の英単語のクイズデータを作成し、JSON形式でのみ出力してください。Markdownのコードブロック構文（\`\`\`json）は含めず、純粋なJSON文字列のみを出力してください。
+
+英単語: "${word}"
+
+【出力するキーと作成ルール】
+1. type: 単語がこれ以上分解できない基本語の場合は「通常」、接辞（-y, -ing, -erなど）がついて分解できる派生語や複合語の場合は「解体」。
+2. answer: 正しい日本語訳（正解）。
+3. choice1, choice2, choice3, choice4: 「answerと同じ正しい日本語訳1つ」と「文脈・属性・品詞に合わせた紛らわしいダミー3つ」。answerが入る場所はchoice1〜4の中でランダムにシャッフルすること。
+4. prefix: typeが「通常」なら空文字「""」。typeが「解体」なら接頭辞とその意味（例: "cata- (下に)" または 接頭辞がなければ空文字）。
+5. base: typeが「通常」なら空文字「""」。typeが「解体」なら語根とその意味（例: "stroph (回る)"）。
+6. suffix: typeが「通常」なら空文字「""」。typeが「解体」なら接尾辞とその意味（例: "-ic (形容詞化)" または 接尾辞がなければ空文字）。
+7. hint: typeが「通常」なら空文字「""」。typeが「解体」なら、分解した各パーツを結合した形（例: "cata- (下に) + stroph (回る) + -ic (形容詞化)"）。
+
+【出力フォーマット】
+{
+  "type": "通常 または 解体",
+  "answer": "日本語訳",
+  "choice1": "選択肢1",
+  "choice2": "選択肢2",
+  "choice3": "選択肢3",
+  "choice4": "選択肢4",
+  "prefix": "",
+  "base": "",
+  "suffix": "",
+  "hint": ""
+}
+`;
+  return callGemini(prompt);
+}
+
+/**
+ * H〜K列（解体・語源データのみ）をGemini APIで生成
+ */
+function generateEtymologyOnly(word, answer) {
+  const prompt = `
+以下の英単語（解体対象）の語源分解・ヒントを作成し、JSON形式でのみ出力してください。Markdownのコードブロック構文（\`\`\`json）は含めず、純粋なJSON文字列のみを出力してください。
+
+英単語: "${word}"
+意味: "${answer}"
+
+【出力するキーと作成ルール】
+1. prefix: 接頭辞とその意味（例: "cata- (下に)" または 接頭辞がなければ空文字 ""）。
+2. base: 語根とその意味（例: "stroph (回る)"）。
+3. suffix: 接尾辞とその意味（例: "-ic (形容詞化)" または 接尾辞がなければ空文字 ""）。
+4. hint: 分解した各パーツを結合した形（例: "cata- (下に) + stroph (回る) + -ic (形容詞化)"）。
+
+【出力フォーマット】
+{
+  "prefix": "",
+  "base": "",
+  "suffix": "",
+  "hint": ""
+}
+`;
+  return callGemini(prompt);
+}
+
+/**
+ * Gemini API 呼び出し共通関数
+ */
+function callGemini(prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const payload = {
+    contents: [{
+      parts: [{ text: prompt }]
+    }],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: "application/json"
+    }
+  };
+
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const json = JSON.parse(response.getContentText());
+    if (json.candidates && json.candidates.length > 0) {
+      const text = json.candidates[0].content.parts[0].text;
+      return JSON.parse(text);
+    }
+  } catch (e) {
+    Logger.log("Error: " + e.toString());
+  }
+  return null;
+}
